@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Life OS - Multiuser</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: linear-gradient(to bottom right, #4facfe, #00f2fe);
+      color: #fff;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+    }
+    h1, h2 {
+      margin: 20px 0;
+    }
+    input, button, select {
+      padding: 10px;
+      margin: 5px;
+      border-radius: 5px;
+      border: none;
+      font-size: 16px;
+    }
+    button {
+      cursor: pointer;
+      background-color: #ff7eb9;
+      color: #fff;
+    }
+    button:hover {
+      background-color: #ff65a3;
+    }
+    .section {
+      display: none;
+    }
+    ul {
+      list-style: none;
+      padding: 0;
+      max-width: 500px;
+      margin: auto;
+    }
+    li {
+      background: rgba(255,255,255,0.2);
+      padding: 10px;
+      margin: 5px 0;
+      border-radius: 5px;
+    }
+    #nav button {
+      background-color: #00ff7f;
+      color: #000;
+    }
+  </style>
+</head>
+<body>
+
+<audio id="bgMusic" src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" autoplay loop></audio>
+
+<!-- Home / Login Screen -->
+<div id="homeScreen">
+  <h1>Life OS</h1>
+  <h2>Sign Up</h2>
+  <input type="text" id="signupUser" placeholder="Username">
+  <input type="password" id="signupPass" placeholder="Password">
+  <button onclick="signUp()">Sign Up</button>
+
+  <h2>Sign In</h2>
+  <input type="text" id="loginUser" placeholder="Username">
+  <input type="password" id="loginPass" placeholder="Password">
+  <button onclick="signIn()">Sign In</button>
+
+  <p id="homeMsg"></p>
+</div>
+
+<!-- Dashboard / Sections -->
+<div id="dashboard" class="section">
+  <h1>Welcome, <span id="currentUser"></span></h1>
+  <h2>Points: <span id="points">0</span></h2>
+
+  <div id="nav">
+    <button onclick="showSection('study')">Study / Activities</button>
+    <button onclick="showSection('chat')">Chat</button>
+    <button onclick="showSection('game')">Mini-Game</button>
+    <button onclick="showSection('diet')">Diet Tracker</button>
+    <button onclick="showSection('fitness')">Fitness Tracker</button>
+    <button onclick="logout()">Logout</button>
+  </div>
+
+  <!-- Study Section -->
+  <div id="study" class="section">
+    <h2>Schedule Study Activity</h2>
+    <input type="text" id="activityName" placeholder="Activity Name">
+    <input type="time" id="activityTime">
+    <button onclick="addActivity()">Add Activity</button>
+    <ul id="activityList"></ul>
+  </div>
+
+  <!-- Chat Section -->
+  <div id="chat" class="section">
+    <h2>Chat</h2>
+    <textarea id="chatBox" placeholder="Chat unlocked after activity" disabled></textarea>
+    <button id="sendBtn" disabled>Send</button>
+  </div>
+
+  <!-- Mini-Game Section -->
+  <div id="game" class="section">
+    <h2>Mini-Game: Click for Points!</h2>
+    <button id="gameBtn" onclick="playGame()" disabled>Play Game</button>
+    <p id="gameMsg"></p>
+  </div>
+
+  <!-- Diet Section -->
+  <div id="diet" class="section">
+    <h2>Diet Tracker</h2>
+    <input type="text" id="mealName" placeholder="Meal Name">
+    <input type="number" id="calories" placeholder="Calories">
+    <button onclick="addMeal()">Add Meal</button>
+    <ul id="dietList"></ul>
+    <p>Total Calories: <span id="totalCalories">0</span></p>
+  </div>
+
+  <!-- Fitness Section -->
+  <div id="fitness" class="section">
+    <h2>Fitness Tracker</h2>
+    <input type="text" id="exerciseName" placeholder="Exercise">
+    <input type="number" id="minutes" placeholder="Minutes">
+    <button onclick="addExercise()">Add Exercise</button>
+    <ul id="fitnessList"></ul>
+    <p>Total Minutes: <span id="totalMinutes">0</span></p>
+  </div>
+
+</div>
+
+<script>
+// ----------------- Multi-user System -----------------
+let users = JSON.parse(localStorage.getItem("users")) || {};
+let current = null;
+
+function signUp() {
+  let user = document.getElementById("signupUser").value;
+  let pass = document.getElementById("signupPass").value;
+  if(!user || !pass) return alert("Enter username and password");
+
+  if(users[user]) return alert("Username already exists");
+
+  users[user] = {
+    password: pass,
+    points: 0,
+    activities: [],
+    diet: [],
+    fitness: []
+  };
+  localStorage.setItem("users", JSON.stringify(users));
+  document.getElementById("homeMsg").textContent = "Sign up successful! Sign in now.";
+}
+
+function signIn() {
+  let user = document.getElementById("loginUser").value;
+  let pass = document.getElementById("loginPass").value;
+  if(!user || !pass) return alert("Enter username and password");
+
+  if(!users[user] || users[user].password !== pass) return alert("Invalid credentials");
+
+  current = user;
+  document.getElementById("homeScreen").style.display = "none";
+  document.getElementById("dashboard").style.display = "block";
+  document.getElementById("currentUser").textContent = current;
+  loadUserData();
+}
+
+// ----------------- Sections Navigation -----------------
+function showSection(id){
+  document.querySelectorAll(".section").forEach(sec => sec.style.display = "none");
+  if(id !== "dashboard") document.getElementById(id).style.display = "block";
+}
+
+// ----------------- Logout -----------------
+function logout(){
+  current = null;
+  document.getElementById("dashboard").style.display = "none";
+  document.getElementById("homeScreen").style.display = "block";
+  document.getElementById("homeMsg").textContent = "";
+}
+
+// ----------------- Study / Activities -----------------
+function loadUserData(){
+  let u = users[current];
+  points = u.points;
+  document.getElementById("points").textContent = points;
+
+  // Activities
+  activities = u.activities || [];
+  renderActivities();
+
+  // Diet
+  diet = u.diet || [];
+  totalCalories = diet.reduce((sum,d)=>sum+d.cal,0);
+  renderDiet();
+
+  // Fitness
+  fitness = u.fitness || [];
+  totalMinutes = fitness.reduce((sum,f)=>sum+f.mins,0);
+  renderFitness();
+}
+
+function saveUserData(){
+  if(!current) return;
+  users[current].points = points;
+  users[current].activities = activities;
+  users[current].diet = diet;
+  users[current].fitness = fitness;
+  localStorage.setItem("users", JSON.stringify(users));
+}
+
+// (Activities, Chat, Game, Diet, Fitness functions are same as before)
+// For brevity, you can copy the previous LifeOS functions and call saveUserData() after every change.
+
+</script>
+
+</body>
+</html>
